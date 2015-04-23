@@ -1,9 +1,9 @@
 buildscript {
     repositories {
         maven {
-            url "$artifactory_contextUrl/jcenter"
+            url = project.hasProperty('artifactory_contextUrl') ? "${artifactory_contextUrl}/jcenter" : 'https://jcenter.bintray.com'
         }
-//        mavenLocal()
+		//mavenLocal()
     }
     dependencies {
         classpath 'de.undercouch:gradle-download-task:1.0'
@@ -78,8 +78,9 @@ task cleanArtPro() {
         execute(cmd)
     }
 }
+
 artifactory {
-    contextUrl = "$artifactory_contextUrl"
+    contextUrl = project.hasProperty('artifactory_contextUrl') ? "${artifactory_contextUrl}" : 'https://repo.jfrog.org/artifactory'
     resolve {
         repository {
             repoKey = 'user-plugins'
