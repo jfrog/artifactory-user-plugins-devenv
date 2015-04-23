@@ -1,0 +1,125 @@
+buildscript {
+    repositories {
+        maven {
+            url "$artifactory_contextUrl/jcenter"
+        }
+//        mavenLocal()
+    }
+    dependencies {
+        classpath 'de.undercouch:gradle-download-task:1.0'
+    }
+}
+
+import de.undercouch.gradle.tasks.download.Download
+
+plugins {
+    //Check the latest version on bintray: https://bintray.com/jfrog/jfrog-jars/build-info-extractor-gradle/view
+    id "com.jfrog.artifactory" version "3.1.0"
+}
+
+apply plugin: 'java'
+apply plugin: 'groovy'
+apply plugin: 'idea'
+apply plugin: 'eclipse'
+
+version = "$currentVersion"
+group = 'org.jfrog.art-plugin-dev'
+
+def etcDir = new File(projectDir, 'etc')
+def scriptsDir = new File(projectDir,'src/scripts')
+def installSh = new File(scriptsDir, 'install.sh')
+def control = new File(scriptsDir, 'control-art.sh')
+def localDir = new File('local-store')
+def artDir = new File('artifactory')
+def artProZip = new File(localDir, 'artifactory-pro.zip')
+
+dependencies {
+    compile(group: 'org.jfrog.artifactory.client', name: 'artifactory-java-client-services', version: '0.15')
+    testCompile(group: 'org.spockframework', name: 'spock-core', version: '0.7-groovy-2.0')
+    compile(group: 'org.artifactory', name: 'artifactory-standalone', classifier: 'tests', version: "$artifactoryVersion")
+}
+
+task downloadArtPro(type: Download) {
+    src artifactoryDownloadUrl
+    dest artProZip
+    onlyIfNewer true
+    overwrite false
+    doFirst {
+        println "Downloading $artifactoryDownloadUrl into ${artProZip.getPath()}"
+    }
+}
+
+task prepareArtPro() {
+    dependsOn downloadArtPro
+    doLast {
+        def cmd = "bash ${getPath(installSh)} ${getPath(etcDir)} ${getPath(localDir)} ${getPath(artDir)}"
+        execute(cmd)
+    }
+}
+
+task startArtPro() {
+    doLast {
+        def cmd = "bash ${getPath(control)} ${getPath(artDir)} start"
+        execute(cmd)
+    }
+}
+
+task stopArtPro() {
+    doLast {
+        def cmd = "bash ${getPath(control)} ${getPath(artDir)} stop"
+        execute(cmd)
+    }
+}
+
+task cleanArtPro() {
+    dependsOn stopArtPro
+    doLast {
+        def cmd = "rm -rf ${getPath(artDir)}"
+        execute(cmd)
+    }
+}
+artifactory {
+    contextUrl = "$artifactory_contextUrl"
+    resolve {
+        repository {
+            repoKey = 'user-plugins'
+            maven = true
+        }
+    }
+}
+
+private static String getPath(File file) {
+    def res = "/" + file.getAbsolutePath().replace('\\', '/')
+    res.replace(':', '')
+}
+
+private void execute(GString cmd) {
+    logger.info("Executing $cmd")
+    def proc = cmd.execute()
+    logger.info("launched")
+
+    def builder = new StringBuilder()
+    def builderErr = new StringBuilder()
+    consumeStream(proc.in, builder, null, true)
+    consumeStream(proc.err,builderErr, null, true)
+    def res = proc.waitFor()
+    if (res != 0) {
+        def errors = builderErr.toString()
+        logger.error("Error executing got $res ${errors} ${builder.toString()}")
+        throw new RuntimeException("Could not run project install due to $errors")
+    } else {
+        logger.debug("Success executing got:\n${builder.toString()}")
+    }
+}
+
+public void consumeStream(InputStream stream, StringBuilder outString, File outFile, boolean print) {
+    Thread.start {
+        Reader reader = new BufferedReader(new InputStreamReader(stream))
+        def next
+        while ((next = reader.readLine()) != null) {
+            if (print) println(next)
+            outString?.append(next)?.append("\n")
+            if (outFile != null) outFile << next + "\n"
+        }
+    }
+}
