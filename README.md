@@ -10,7 +10,7 @@ To set up your ide type:  ./gradlew idea (or eclipse)
 To download and configure artifactory: ./gradlew prepareArtPro
 To start artifactory: ./gradlew startArtPro
 
-Then you can run the tests present in 'artifactory-plugin/src/test/groovy/org/jfrog/vcac/test/' using your IDE.
+Then you can run the tests present in 'artifactory-user-plugins-devenv/src/test/groovy/org/jfrog/plugindev/test' using your IDE.
 
 To stop artifactory: ./gradlew stopArtPro
 
