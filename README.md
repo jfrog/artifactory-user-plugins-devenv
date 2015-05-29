@@ -20,7 +20,7 @@ Artifactory will be configured with the artifactory pro license present in the e
 a representative set of repositories, and will poll the plugins directory for updates every 10 seconds.
 
 
-Logging can be printed to the logs from within the plugin (with log.warn) and tailing the artifactory.log file, as user plugins are compiled at runtime. A basic example would be - 
+Logging can be printed to the logs from within the plugin (with log.warn) and viewed by tailing the artifactory.log file, as user plugins are compiled at runtime. A basic example would be - 
 
 ```java
 storage {
