@@ -46,6 +46,7 @@ mkdir -p "$artHome"/etc || ( echo "can't create etc dir $?" && exit 8)
 # you need to provide your own license file!
 cp -a $localDir/artifactory.lic "$artHome/etc" || ( echo "can't copy $etcDir/artifactory.lic to $artHome/etc" && exit 9)
 cp -a $etcDir/artifactory.system.properties "$artHome/etc" || ( echo "can't copy $etcDir/artifactory.system.porperties to $artHome/etc" && exit 10)
+echo 'export JAVA_OPTIONS="$JAVA_OPTIONS -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5008"' >> "$artHome/bin/artifactory.default" || ( echo "can't add java options to artifactory.default" && exit 10)
 # uncomment next line if you wish to copy an artifactory config or security descriptor mu
 # cp -a $etcDir/{artifactory.config.import.xml,security.import.xml} "$artHome/etc" || ( echo "can't copy $etcDir to $artHome/etc" && exit 13)
 # below server.xml resets the port to 8088 so it doesn't conflict with a 'standard' localhost install

@@ -1,0 +1,9 @@
+.gradle/
+*.iml
+*.ipr
+*.iws
+artifactory/
+local-store/artifactory.lic
+local-store/artifactory-pro.zip
+src/test/groovy/*.groovy
+etc/plugins/*.groovy

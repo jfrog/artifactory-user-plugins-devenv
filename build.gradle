@@ -11,6 +11,7 @@ buildscript {
 }
 
 import de.undercouch.gradle.tasks.download.Download
+import java.nio.file.Files
 
 plugins {
     //Check the latest version on bintray: https://bintray.com/jfrog/jfrog-jars/build-info-extractor-gradle/view
@@ -71,12 +72,108 @@ task stopArtPro() {
     }
 }
 
+task restartArtPro() {
+    doLast {
+        execute("bash ${getPath(control)} ${getPath(artDir)} stop")
+        execute("bash ${getPath(control)} ${getPath(artDir)} start")
+    }
+}
+
 task cleanArtPro() {
     dependsOn stopArtPro
     doLast {
         def cmd = "rm -rf ${getPath(artDir)}"
         execute(cmd)
     }
+}
+
+// usage: ./gradlew workOnPlugin -DpluginName=governance/preventUnapproved
+// link a plugin and any supplementary files into the dev environment
+task workOnPlugin << {
+    if (!System.properties.pluginName)
+        throw new InvalidUserDataException('No plugin specified')
+    def userPlugins = new File(System.properties.userPluginsDir)
+    if (!userPlugins.isDirectory())
+        throw new InvalidUserDataException('System property userPluginsDir not a directory')
+    def success = true, linked = false;
+    def prefix = new File(System.properties.pluginName).getName()
+    def lnPath = new File(etcDir, 'plugins')
+    def lnTestPath = new File(projectDir, 'src/test/groovy')
+    for (def pluginFile : new File(userPlugins, System.properties.pluginName).listFiles()) {
+        def fileName = pluginFile.getName()
+        if (fileName.startsWith(prefix + '.')) {
+            if (!"ln -s ${pluginFile.getCanonicalPath()} ${lnPath.getPath()}".execute().waitFor()) {
+                linked = true;
+                println "Linked file ${fileName}"
+            } else {
+                success = false;
+                println "Failed to link file ${fileName}"
+            }
+        } else if (fileName.startsWith(prefix + 'Test.')) {
+            if (!"ln -s ${pluginFile.getCanonicalPath()} ${lnTestPath.getPath()}".execute().waitFor()) {
+                linked = true;
+                println "Linked test file ${fileName}"
+            } else {
+                success = false;
+                println "Failed to link test file ${fileName}"
+            }
+        }
+    }
+    if (success && linked)
+        println 'Specified plugin successfully added to environment'
+    else if (!success)
+        println 'Warning: Some plugin files could not be added'
+    else
+        throw new InvalidUserDataException('Specified plugin not found')
+}
+
+// usage: ./gradlew stopWorkOnPlugin -DpluginName=governance/preventUnapproved
+// remove links to a plugin and any supplementary files from the dev environment, and restart artifactory
+// usage: ./gradlew stopWorkOnPlugin -DpluginName=all
+// remove links to all plugins and any supplementary files from the dev environment, and restart artifactory
+task stopWorkOnPlugin << {
+    if (!System.properties.pluginName)
+        throw new InvalidUserDataException('No plugin specified')
+    def success = true, removed = false;
+    def prefix = new File(System.properties.pluginName).getName()
+    for (def lnPath : new File(etcDir, 'plugins').listFiles()) {
+        def lnName = lnPath.getName()
+        if ((System.properties.pluginName == 'all' || lnName.startsWith(prefix + '.'))
+                && Files.isSymbolicLink(lnPath.toPath())) {
+            if (lnPath.delete()) {
+                removed = true;
+                println "Removed link ${lnName}"
+            } else {
+                success = false;
+                println "Failed to remove link ${lnName}"
+            }
+        }
+    }
+    for (def lnPath : new File(projectDir, 'src/test/groovy').listFiles()) {
+        def lnName = lnPath.getName()
+        if ((System.properties.pluginName == 'all' || lnName.startsWith(prefix + 'Test.'))
+                && Files.isSymbolicLink(lnPath.toPath())) {
+            if (lnPath.delete()) {
+                removed = true;
+                println "Removed test link ${lnName}"
+            } else {
+                success = false;
+                println "Failed to remove test link ${lnName}"
+            }
+        }
+    }
+    if (success && removed)
+        println 'All specified plugin links successfully removed from environment'
+    else if (!success)
+        println 'Warning: Some plugin links could not be removed'
+    else if (System.properties.pluginName == 'all')
+        throw new InvalidUserDataException('No plugins found in plugins directory')
+    else
+        throw new InvalidUserDataException('Specified plugin not found in plugins directory')
+    println 'Restarting artifactory ...'
+    execute("bash ${getPath(control)} ${getPath(artDir)} stop")
+    execute("bash ${getPath(control)} ${getPath(artDir)} start")
+    println '... Done'
 }
 
 artifactory {
