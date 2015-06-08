@@ -109,7 +109,7 @@ task workOnPlugin << {
                 success = false;
                 println "Failed to link file ${fileName}"
             }
-        } else if (fileName.startsWith(prefix + 'Test.')) {
+        } else if (fileName == prefix + 'Test.groovy' || fileName == prefix + 'Test') {
             if (!"ln -s ${pluginFile.getCanonicalPath()} ${lnTestPath.getPath()}".execute().waitFor()) {
                 linked = true;
                 println "Linked test file ${fileName}"
@@ -151,7 +151,7 @@ task stopWorkOnPlugin << {
     }
     for (def lnPath : new File(projectDir, 'src/test/groovy').listFiles()) {
         def lnName = lnPath.getName()
-        if ((System.properties.pluginName == 'all' || lnName.startsWith(prefix + 'Test.'))
+        if ((System.properties.pluginName == 'all' || lnName == prefix + 'Test.groovy' || lnName == prefix + 'Test')
                 && Files.isSymbolicLink(lnPath.toPath())) {
             if (lnPath.delete()) {
                 removed = true;
