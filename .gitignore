@@ -7,7 +7,8 @@ artifactory/
 local-store/artifactory.lic
 local-store/artifactory-pro.zip
 src/test/groovy/*.groovy
-src/test/groovy/*/
+src/test/groovy/test
 etc/plugins/*.groovy
 etc/plugins/*.properties
 etc/plugins/*.json
+etc/plugins/lib/

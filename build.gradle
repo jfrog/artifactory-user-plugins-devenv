@@ -109,7 +109,7 @@ task workOnPlugin << {
                 success = false;
                 println "Failed to link file ${fileName}"
             }
-        } else if (fileName == prefix + 'Test.groovy' || fileName == prefix + 'Test') {
+        } else if (fileName == prefix + 'Test.groovy' || fileName == 'test') {
             if (!"ln -s ${pluginFile.getCanonicalPath()} ${lnTestPath.getPath()}".execute().waitFor()) {
                 linked = true;
                 println "Linked test file ${fileName}"
@@ -125,6 +125,12 @@ task workOnPlugin << {
         println 'Warning: Some plugin files could not be added'
     else
         throw new InvalidUserDataException('Specified plugin not found')
+    def setupFile = new File(new File(userPlugins, System.properties.pluginName), 'setup.groovy')
+    if (setupFile.isFile()) {
+        println 'Setup file found. Executing ...'
+        run(setupFile)
+        println '... Done'
+    }
 }
 
 // usage: ./gradlew stopWorkOnPlugin -DpluginName=governance/preventUnapproved
@@ -151,7 +157,7 @@ task stopWorkOnPlugin << {
     }
     for (def lnPath : new File(projectDir, 'src/test/groovy').listFiles()) {
         def lnName = lnPath.getName()
-        if ((System.properties.pluginName == 'all' || lnName == prefix + 'Test.groovy' || lnName == prefix + 'Test')
+        if ((System.properties.pluginName == 'all' || lnName == prefix + 'Test.groovy' || lnName == 'test')
                 && Files.isSymbolicLink(lnPath.toPath())) {
             if (lnPath.delete()) {
                 removed = true;
