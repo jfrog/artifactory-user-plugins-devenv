@@ -1,26 +1,38 @@
-How to configure artifactory plugin development
+How to configure Artifactory plugin development
+-----------------------------------------------
 
-go to the gradle.properties and set the artifactoryVersion to the version you are using  
-go to the gradle.properties and paste in your download link for artifactory.  
-link in plugins to be worked in in the etc/plugins directory (see readme there)
+- Go to the `gradle.properties` file and set the `artifactoryVersion` to the version you are using
+- Go to `gradle.properties` and paste in your download link for Artifactory
+- Link any plugins to be worked on in the `etc/plugins` directory (see readme there), or
+- If you are using the [`artifactory-user-plugins`](https://github.com/JFrogDev/artifactory-user-plugins)
+  repository, paste that path into `gradle.properties`
 
-All of the configuration happens with gradle tasks:
+All of the configuration happens with Gradle tasks:
 
-To set up your ide type:  ./gradlew idea (or eclipse)
-To download and configure artifactory: ./gradlew prepareArtPro
-To start artifactory: ./gradlew startArtPro
+To set up your IDE, type: `./gradlew idea` (or `./gradlew eclipse`)  
+To download and configure Artifactory: `./gradlew prepareArtPro`  
+To start Artifactory: `./gradlew startArtPro`
 
-Then you can run the tests present in 'artifactory-user-plugins-devenv/src/test/groovy/org/jfrog/plugindev/test' using your IDE.
+If you are using the [`artifactory-user-plugins`](https://github.com/JFrogDev/artifactory-user-plugins) repository:  
+To link a plugin: `./gradlew workOnPlugin -DpluginName=plugin/name`  
+To unlink a plugin: `./gradlew stopWorkOnPlugin -DpluginName=plugin/name`  
+To unlink all plugins: `./gradlew stopWorkOnPlugin -DpluginName=all`
 
-To stop artifactory: ./gradlew stopArtPro
+Then you can run the tests present in
+`artifactory-user-plugins-devenv/src/test/groovy/org/jfrog/plugindev/test` using
+your IDE.
 
-To erase all artifactory storages: ./gradlew cleanArtPro
+To stop Artifactory: `./gradlew stopArtPro`  
+To restart Artifactory: `./gradlew restartArtPro`  
+To erase all Artifactory storages: `./gradlew cleanArtPro`
 
-Artifactory will be configured with the artifactory pro license present in the etc folder,
-a representative set of repositories, and will poll the plugins directory for updates every 10 seconds.
+Artifactory will be configured with the Artifactory Pro license present in the
+`etc` folder, a representative set of repositories, and will poll the `plugins`
+directory for updates every 10 seconds.
 
-
-Logging can be printed to the logs from within the plugin (with log.warn) and viewed by tailing the artifactory.log file, as user plugins are compiled at runtime. A basic example would be - 
+Logging can be printed to the logs from within the plugin (with `log.warn`) and
+viewed by tailing the `artifactory.log` file, as user plugins are compiled at
+runtime. A basic example would be:
 
 ```java
 storage {
@@ -30,4 +42,4 @@ storage {
 }
 ```
 
-(For checking whether the beforeMove event was triggered)
+(For checking whether the `beforeMove` event was triggered)
