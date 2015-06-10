@@ -9,9 +9,10 @@ How to configure Artifactory plugin development
 
 All of the configuration happens with Gradle tasks:
 
-To set up your IDE, type: `./gradlew idea` (or `./gradlew eclipse`)  
-To download and configure Artifactory: `./gradlew prepareArtPro`  
-To start Artifactory: `./gradlew startArtPro`
+1. To set up your IDE, type: `./gradlew idea` (or `./gradlew eclipse`)
+2. Copy your `artifactory.lic` license into the `local-store` directory
+3. To download and configure Artifactory: `./gradlew prepareArtPro`
+4. To start Artifactory: `./gradlew startArtPro`
 
 If you are using the [`artifactory-user-plugins`](https://github.com/JFrogDev/artifactory-user-plugins) repository:  
 To link a plugin: `./gradlew workOnPlugin -DpluginName=plugin/name`  
