@@ -1,11 +1,11 @@
 How to configure Artifactory plugin development
 -----------------------------------------------
 
-- Go to the `gradle.properties` file and set the `artifactoryVersion` to the version you are using
-- Go to `gradle.properties` and paste in your download link for Artifactory
 - Link any plugins to be worked on in the `etc/plugins` directory (see readme there), or
 - If you are using the [`artifactory-user-plugins`](https://github.com/JFrogDev/artifactory-user-plugins)
   repository, paste that path into `gradle.properties`
+- If you want to use an older version of Artifactory, or download it from a different source, edit `gradle.properties`
+  accordingly
 
 All of the configuration happens with Gradle tasks:
 
@@ -28,7 +28,7 @@ To restart Artifactory: `./gradlew restartArtPro`
 To erase all Artifactory storages: `./gradlew cleanArtPro`
 
 Artifactory will be configured with the Artifactory Pro license present in the
-`etc` folder, a representative set of repositories, and will poll the `plugins`
+`local-store` folder, a representative set of repositories, and will poll the `plugins`
 directory for updates every 10 seconds.
 
 Logging can be printed to the logs from within the plugin (with `log.warn`) and

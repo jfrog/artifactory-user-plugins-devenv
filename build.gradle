@@ -5,17 +5,19 @@ buildscript {
         }
 		//mavenLocal()
     }
-    dependencies {
-        classpath 'de.undercouch:gradle-download-task:1.0'
-    }
+    //dependencies {
+    //    classpath 'de.undercouch:gradle-download-task:1.2'
+    //}
 }
 
 import de.undercouch.gradle.tasks.download.Download
+import groovy.json.JsonSlurper
 import java.nio.file.Files
 
 plugins {
     //Check the latest version on bintray: https://bintray.com/jfrog/jfrog-jars/build-info-extractor-gradle/view
     id "com.jfrog.artifactory" version "3.1.0"
+    id "de.undercouch.download" version "1.2"
 }
 
 apply plugin: 'java'
@@ -40,13 +42,20 @@ dependencies {
     compile(group: 'org.artifactory', name: 'artifactory-standalone', classifier: 'tests', version: "$artifactoryVersion")
 }
 
-task downloadArtPro(type: Download) {
-    src artifactoryDownloadUrl
-    dest artProZip
-    onlyIfNewer true
-    overwrite false
-    doFirst {
-        println "Downloading $artifactoryDownloadUrl into ${artProZip.getPath()}"
+task downloadArtPro << {
+    def updatedVersion = artifactoryVersion
+    if (updatedVersion == "_latest") {
+        def url = new URL("https://api.bintray.com/packages/jfrog/artifactory-pro/artifactory-powerpack-standalone")
+        def json = new JsonSlurper().parse(url)
+        updatedVersion = json.latest_version
+    }
+    def updatedUrl = artifactoryDownloadUrl.replaceAll('\\[VERSION]', updatedVersion)
+    println "Downloading $updatedUrl into ${artProZip.getPath()}"
+    download {
+        src updatedUrl
+        dest artProZip
+        onlyIfNewer true
+        overwrite false
     }
 }
 
