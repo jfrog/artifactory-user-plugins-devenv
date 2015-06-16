@@ -36,20 +36,21 @@ def localDir = new File('local-store')
 def artDir = new File('artifactory')
 def artProZip = new File(localDir, 'artifactory-pro.zip')
 
+def realArtifactoryVersion = artifactoryVersion
+if (realArtifactoryVersion == "_latest") {
+    def url = new URL("https://api.bintray.com/packages/jfrog/artifactory-pro/artifactory-powerpack-standalone")
+    def json = new JsonSlurper().parse(url)
+    realArtifactoryVersion = json.latest_version
+}
+
 dependencies {
     compile(group: 'org.jfrog.artifactory.client', name: 'artifactory-java-client-services', version: '0.15')
     testCompile(group: 'org.spockframework', name: 'spock-core', version: '0.7-groovy-2.0')
-    compile(group: 'org.artifactory', name: 'artifactory-standalone', classifier: 'tests', version: "$artifactoryVersion")
+    compile(group: 'org.artifactory', name: 'artifactory-standalone', classifier: 'tests', version: "$realArtifactoryVersion")
 }
 
 task downloadArtPro << {
-    def updatedVersion = artifactoryVersion
-    if (updatedVersion == "_latest") {
-        def url = new URL("https://api.bintray.com/packages/jfrog/artifactory-pro/artifactory-powerpack-standalone")
-        def json = new JsonSlurper().parse(url)
-        updatedVersion = json.latest_version
-    }
-    def updatedUrl = artifactoryDownloadUrl.replaceAll('\\[VERSION]', updatedVersion)
+    def updatedUrl = artifactoryDownloadUrl.replaceAll('\\[VERSION]', realArtifactoryVersion)
     println "Downloading $updatedUrl into ${artProZip.getPath()}"
     download {
         src updatedUrl
