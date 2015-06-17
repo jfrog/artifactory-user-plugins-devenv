@@ -1,14 +1,29 @@
-.gradle/
-*.iml
-*.ipr
-*.iws
-build/
-artifactory/
-local-store/artifactory.lic
-local-store/artifactory-pro.zip
-src/test/groovy/*.groovy
-src/test/groovy/test
-etc/plugins/*.groovy
-etc/plugins/*.properties
-etc/plugins/*.json
-etc/plugins/lib/
+# generated files
+/artifactory/
+/.gradle/
+
+# artifactory package and license
+/local-store/artifactory-pro.zip
+/local-store/artifactory.lic
+
+# user supplied or linked plugin files
+/etc/plugins/*.groovy
+/etc/plugins/*.properties
+/etc/plugins/*.json
+/etc/plugins/lib/
+
+# user supplied or linked test files
+/src/test/groovy/*.groovy
+/src/test/groovy/test
+
+# idea files
+/*.iml
+/*.ipr
+/*.iws
+/build/
+
+# eclipse files
+/.settings/
+/.classpath
+/.project
+/bin/

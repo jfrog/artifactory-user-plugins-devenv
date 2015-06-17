@@ -3,7 +3,7 @@ buildscript {
         maven {
             url = project.hasProperty('artifactory_contextUrl') ? "${artifactory_contextUrl}/jcenter" : 'https://jcenter.bintray.com'
         }
-		//mavenLocal()
+        //mavenLocal()
     }
     //dependencies {
     //    classpath 'de.undercouch:gradle-download-task:1.2'
@@ -70,6 +70,16 @@ idea {
     }
     module {
         sourceDirs += new File(etcDir, 'plugins')
+    }
+}
+
+eclipse {
+    classpath {
+        file {
+            withXml {
+                it.asNode().appendNode('classpathentry', [kind: "src", path: "etc/plugins"])
+            }
+        }
     }
 }
 
