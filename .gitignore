@@ -13,8 +13,8 @@
 /etc/plugins/lib/
 
 # user supplied or linked test files
-/src/test/groovy/*.groovy
-/src/test/groovy/test
+/src/test/groovy/*Test.groovy
+/src/test/groovy/*Test
 
 # idea files
 /*.iml
