@@ -123,29 +123,28 @@ task cleanArtPro() {
 
 // usage: ./gradlew workOnPlugin -DpluginName=governance/preventUnapproved
 // link a plugin and any supplementary files into the dev environment
+// usage: ./gradlew workOnPlugin -DpluginName=all
+// link all plugins and any supplementary files into the dev environment
 task workOnPlugin << {
     if (!System.properties.pluginName)
         throw new InvalidUserDataException('No plugin specified')
     def userPlugins = new File(System.properties.userPluginsDir)
     if (!userPlugins.isDirectory())
         throw new InvalidUserDataException('System property userPluginsDir not a directory')
-    def prefix = new File(System.properties.pluginName).getName()
-    def fullPrefix = System.properties.pluginName
-    linkPlugin(fullPrefix,prefix, userPlugins)
-}
-
-task workOnAllPlugin << {
-    def userPlugins = new File(System.properties.userPluginsDir)
-    if (!userPlugins.isDirectory())
-        throw new InvalidUserDataException('System property userPluginsDir not a directory')
-    def dir = new File(userPlugins.absolutePath)
-    dir.eachFileRecurse(FileType.FILES) { file ->
-        if (file.name.endsWith('.groovy') && file.name != 'setup.groovy' && !file.name.endsWith('Test.groovy')) {
-            String prefix = "${file.name.minus('.groovy')}"
-            String tmp = file.absolutePath.minus("/$file.name")
-            String fullPrefix = tmp.minus("$dir.absolutePath/")
-            linkPlugin(fullPrefix,prefix, userPlugins)
+    if (System.properties.pluginName == 'all') {
+        def dir = new File(userPlugins.absolutePath)
+        dir.eachFileRecurse(FileType.FILES) { file ->
+            if (file.name.endsWith('.groovy') && file.name != 'setup.groovy' && !file.name.endsWith('Test.groovy')) {
+                String prefix = "${file.name.minus('.groovy')}"
+                String tmp = file.absolutePath.minus("/$file.name")
+                String fullPrefix = tmp.minus("$dir.absolutePath/")
+                linkPlugin(fullPrefix,prefix, userPlugins)
+            }
         }
+    } else {
+        def prefix = new File(System.properties.pluginName).getName()
+        def fullPrefix = System.properties.pluginName
+        linkPlugin(fullPrefix,prefix, userPlugins)
     }
 }
 
