@@ -11,6 +11,7 @@ buildscript {
 }
 
 import de.undercouch.gradle.tasks.download.Download
+import groovy.io.FileType
 import groovy.json.JsonSlurper
 import java.nio.file.Files
 
@@ -29,7 +30,7 @@ version = "$currentVersion"
 group = 'org.jfrog.art-plugin-dev'
 
 def etcDir = new File(projectDir, 'etc')
-def scriptsDir = new File(projectDir,'src/scripts')
+def scriptsDir = new File(projectDir, 'src/scripts')
 def installSh = new File(scriptsDir, 'install.sh')
 def control = new File(scriptsDir, 'control-art.sh')
 def localDir = new File('local-store')
@@ -122,56 +123,76 @@ task cleanArtPro() {
 
 // usage: ./gradlew workOnPlugin -DpluginName=governance/preventUnapproved
 // link a plugin and any supplementary files into the dev environment
+// usage: ./gradlew workOnPlugin -DpluginName=all
+// link all plugins and any supplementary files into the dev environment
 task workOnPlugin << {
     if (!System.properties.pluginName)
         throw new InvalidUserDataException('No plugin specified')
     def userPlugins = new File(System.properties.userPluginsDir)
     if (!userPlugins.isDirectory())
         throw new InvalidUserDataException('System property userPluginsDir not a directory')
+    if (System.properties.pluginName == 'all') {
+        def dir = new File(userPlugins.absolutePath)
+        dir.eachFileRecurse(FileType.FILES) { file ->
+            if (file.name.endsWith('.groovy') && file.name != 'setup.groovy' && !file.name.endsWith('Test.groovy')) {
+                String prefix = "${file.name.minus('.groovy')}"
+                String tmp = file.absolutePath.minus("/$file.name")
+                String fullPrefix = tmp.minus("$dir.absolutePath/")
+                linkPlugin(fullPrefix,prefix, userPlugins)
+            }
+        }
+    } else {
+        def prefix = new File(System.properties.pluginName).getName()
+        def fullPrefix = System.properties.pluginName
+        linkPlugin(fullPrefix,prefix, userPlugins)
+    }
+}
+
+def linkPlugin(def fullPrefix,def prefix, File userPlugins) {
     def success = true, linked = false;
-    def prefix = new File(System.properties.pluginName).getName()
+    def etcDir = new File(projectDir, 'etc')
     def lnPath = new File(etcDir, 'plugins')
     def lnTestPath = new File(projectDir, 'src/test/groovy')
-    for (def pluginFile : new File(userPlugins, System.properties.pluginName).listFiles()) {
+    for (def pluginFile : new File(userPlugins, fullPrefix).listFiles()) {
         def fileName = pluginFile.getName()
         if (fileName.startsWith(prefix + '.')) {
             if (!"ln -s ${pluginFile.getCanonicalPath()} ${lnPath.getPath()}".execute().waitFor()) {
                 linked = true;
-                println "Linked file ${fileName}"
+                logger.quiet "Linked file ${fileName}"
             } else {
                 success = false;
-                println "Failed to link file ${fileName}"
+                logger.warn "WARN: Failed to link file ${fileName}"
             }
         } else if (fileName == prefix + 'Test.groovy') {
             if (!"ln -s ${pluginFile.getCanonicalPath()} ${lnTestPath.getPath()}".execute().waitFor()) {
                 linked = true;
-                println "Linked test file ${fileName}"
+                logger.quiet "Linked test file ${fileName}"
             } else {
                 success = false;
-                println "Failed to link test file ${fileName}"
+                logger.warn "WARN: Failed to link test file ${fileName}"
             }
         } else if (fileName == 'test' && pluginFile.isDirectory()) {
             def lnDest = new File(lnTestPath, prefix + 'Test')
-            if (!"ln -s -T ${pluginFile.getCanonicalPath()} ${lnDest.getPath()}".execute().waitFor()) {
+            if (!"ln -s  ${pluginFile.getCanonicalPath()} ${lnDest.getPath()}".execute().waitFor()) {
                 linked = true;
-                println "Linked test directory"
+                logger.quiet "Linked test directory"
             } else {
                 success = false;
-                println "Failed to link test directory"
+                logger.warn "WARN: Failed to link test directory"
             }
         }
     }
     if (success && linked)
-        println 'Specified plugin successfully added to environment'
+        logger.quiet 'Specified plugin successfully added to environment'
     else if (!success)
-        println 'Warning: Some plugin files could not be added'
+        logger.warn 'WARN: Warning: Some plugin files could not be added'
     else
         throw new InvalidUserDataException('Specified plugin not found')
-    def setupFile = new File(new File(userPlugins, System.properties.pluginName), 'setup.groovy')
+    def setupFile = new File(new File(userPlugins, fullPrefix), 'setup.groovy')
     if (setupFile.isFile()) {
-        println 'Setup file found. Executing ...'
+        logger.quiet 'Setup file found. Executing ...'
         run(setupFile)
-        println '... Done'
+        logger.quiet '... Done'
     }
 }
 
@@ -247,7 +268,7 @@ private void execute(GString cmd) {
     def builder = new StringBuilder()
     def builderErr = new StringBuilder()
     consumeStream(proc.in, builder, null, true)
-    consumeStream(proc.err,builderErr, null, true)
+    consumeStream(proc.err, builderErr, null, true)
     def res = proc.waitFor()
     if (res != 0) {
         def errors = builderErr.toString()
