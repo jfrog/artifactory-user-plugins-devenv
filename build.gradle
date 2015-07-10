@@ -141,13 +141,15 @@ task updateArtPro() {
         }
         // read the new version number from the zip early, in case it's already installed
         def newArtVersion = null
-        for (def line : "unzip -l $artProZip.path".execute().inputStream.readLines()) {
+        def pathStream = "unzip -l $artProZip.path".execute().inputStream
+        for (def line : pathStream.readLines()) {
             def match = line =~ 'artifactory-powerpack-([^/]*)'
             if (match.count > 0) {
                 newArtVersion = match[0][1]
                 break
             }
         }
+        pathStream.close()
         if (newArtVersion != null && new File(artDir, "artifactory-powerpack-$newArtVersion").directory) {
             println "Artifactory is already up to date: nothing to be done"
             return
@@ -164,36 +166,41 @@ task updateArtPro() {
             def newArtifactorySrc = newArtifactories[0]
             def newArtifactoryDst = new File(artDir, newArtifactorySrc.name)
             // there should only be one Artifactory already installed, but if there is more than one,
-            // find the most recent and delete the others
+            // find the most recently modified one
             def oldArtifactory = null
             for (File file : artDir.listFiles()) {
                 if (file.directory && file.name.startsWith('artifactory-powerpack-')) {
-                    if (oldArtifactory == null) {
+                    if (oldArtifactory == null || file.lastModified() > oldArtifactory.lastModified()) {
                         oldArtifactory = file
-                    } else if (file.lastModified() > oldArtifactory.lastModified()) {
-                        GFileUtils.deleteDirectory(oldArtifactory)
-                        oldArtifactory = file
-                    } else {
-                        GFileUtils.deleteDirectory(file)
                     }
                 }
             }
             // if there aren't any old installs, move the new copy to the correct location
             if (oldArtifactory == null) {
+                if (newArtifactoryDst.exists()) GFileUtils.forceDelete(newArtifactoryDst)
                 GFileUtils.moveDirectory(newArtifactorySrc, newArtifactoryDst)
-                GFileUtils.deleteDirectory(tmpfile)
+                GFileUtils.forceDelete(tmpfile)
                 println "Artifactory updated successfully"
                 return
             }
             // upgrade the old install with the contents of the new package
             // (follows the instructions on the wiki)
-            def tomcatlib = new File(newArtifactorySrc, 'tomcat/lib')
-            GFileUtils.copyFile(new File(oldArtifactory, 'tomcat/conf/server.xml'), new File(newArtifactorySrc, 'tomcat/conf/server.xml'))
-            for (File srcfile : new File(oldArtifactory, 'tomcat/lib').listFiles()) {
-                def dstfile = new File(tomcatlib, srcfile.name)
-                if (!dstfile.exists()) GFileUtils.copyFile(srcfile, dstfile)
+            def serversrc = new File(oldArtifactory, 'tomcat/conf/server.xml')
+            def serverdst = new File(newArtifactorySrc, 'tomcat/conf/server.xml')
+            if (serversrc.exists()) {
+                if (serverdst.exists()) GFileUtils.forceDelete(serverdst)
+                GFileUtils.copyFile(serversrc, serverdst)
             }
-            // ensure that the files that need to be moved exist
+            def tomcatlibsrc = new File(oldArtifactory, 'tomcat/lib')
+            def tomcatlibdst = new File(newArtifactorySrc, 'tomcat/lib')
+            if (tomcatlibsrc.directory) {
+                if (tomcatlibdst.exists() && !tomcatlibdst.directory) GFileUtils.forceDelete(tomcatlibdst)
+                for (File srcfile : tomcatlibsrc.listFiles()) {
+                    def dstfile = new File(tomcatlibdst, srcfile.name)
+                    if (!dstfile.exists()) GFileUtils.copyFile(srcfile, dstfile)
+                }
+            }
+            // set up all the files that need to be moved
             def warsrc = new File(newArtifactorySrc, 'webapps/artifactory.war')
             def wardst = new File(oldArtifactory, 'webapps/artifactory.war')
             def tomcatsrc = new File(newArtifactorySrc, 'tomcat')
@@ -202,27 +209,30 @@ task updateArtPro() {
             def bindst = new File(oldArtifactory, 'bin')
             def etcsrc = new File(newArtifactorySrc, 'etc')
             def etcdst = new File(oldArtifactory, 'etc')
-            if (!warsrc.exists() || !tomcatsrc.directory || !binsrc.directory || !etcsrc.directory) {
-                throw new RuntimeException("Some files necessary for update do not exist")
-            }
             // move the files
-            if (!wardst.parentFile.directory) wardst.parentFile.mkdirs()
-            GFileUtils.copyFile(warsrc, wardst)
-            if (!tomcatdst.parentFile.directory) tomcatdst.parentFile.mkdirs()
-            if (tomcatdst.directory) GFileUtils.deleteDirectory(tomcatdst)
-            GFileUtils.moveDirectory(tomcatsrc, tomcatdst)
-            if (!bindst.parentFile.directory) bindst.parentFile.mkdirs()
-            if (bindst.directory) GFileUtils.deleteDirectory(bindst)
-            GFileUtils.moveDirectory(binsrc, bindst)
-            if (!etcdst.parentFile.directory) etcdst.parentFile.mkdirs()
-            if (etcdst.directory) GFileUtils.deleteDirectory(etcdst)
-            GFileUtils.moveDirectory(etcsrc, etcdst)
+            if (warsrc.exists() && !warsrc.directory) {
+                if (wardst.exists()) GFileUtils.forceDelete(wardst)
+                GFileUtils.moveFile(warsrc, wardst)
+            }
+            if (tomcatsrc.directory) {
+                if (tomcatdst.exists()) GFileUtils.forceDelete(tomcatdst)
+                GFileUtils.moveDirectory(tomcatsrc, tomcatdst)
+            }
+            if (binsrc.directory) {
+                if (bindst.exists()) GFileUtils.forceDelete(bindst)
+                GFileUtils.moveDirectory(binsrc, bindst)
+            }
+            if (etcsrc.directory) {
+                if (etcdst.exists()) GFileUtils.forceDelete(etcdst)
+                GFileUtils.moveDirectory(etcsrc, etcdst)
+            }
             // move the upgraded copy to the correct location
+            if (newArtifactoryDst.exists()) GFileUtils.forceDelete(newArtifactoryDst)
             GFileUtils.moveDirectory(oldArtifactory, newArtifactoryDst)
-            GFileUtils.deleteDirectory(tmpfile)
+            GFileUtils.forceDelete(tmpfile)
             println "Artifactory updated successfully"
         } finally {
-            if (tmpfile.directory) GFileUtils.deleteDirectory(tmpfile)
+            if (tmpfile.directory) GFileUtils.forceDelete(tmpfile)
         }
     }
 }
