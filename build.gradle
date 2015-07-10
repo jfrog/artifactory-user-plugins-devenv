@@ -37,27 +37,32 @@ def localDir = new File('local-store')
 def artDir = new File('artifactory')
 def artProZip = new File(localDir, 'artifactory-pro.zip')
 
-def realArtifactoryVersion = artifactoryVersion
-if (realArtifactoryVersion == "_latest") {
-    def url = new URL("https://api.bintray.com/packages/jfrog/artifactory-pro/artifactory-powerpack-standalone")
-    def json = new JsonSlurper().parse(url)
-    realArtifactoryVersion = json.latest_version
+def getArtVersion() {
+    if (artifactoryVersion == "_latest") {
+        try {
+            def url = new URL("https://api.bintray.com/packages/jfrog/artifactory-pro/artifactory-powerpack-standalone")
+            def json = new JsonSlurper().parse(url)
+            artifactoryVersion = json.latest_version
+            return json.latest_version
+        } catch (Exception ex) {
+            throw new IOException("Could not retrieve the latest Artifactory version number from bintray.", ex)
+        }
+    } else return artifactoryVersion
 }
 
 dependencies {
     compile(group: 'org.jfrog.artifactory.client', name: 'artifactory-java-client-services', version: '0.15')
     testCompile(group: 'org.spockframework', name: 'spock-core', version: '0.7-groovy-2.0')
-    compile(group: 'org.artifactory', name: 'artifactory-standalone', classifier: 'tests', version: "$realArtifactoryVersion")
+    compile(group: 'org.artifactory', name: 'artifactory-standalone', classifier: 'tests', version: "${getArtVersion()}")
 }
 
 task downloadArtPro << {
-    def updatedUrl = artifactoryDownloadUrl.replaceAll('\\[VERSION]', realArtifactoryVersion)
+    def updatedUrl = artifactoryDownloadUrl.replaceAll('\\[VERSION]', getArtVersion())
     println "Downloading $updatedUrl into ${artProZip.getPath()}"
     download {
         src updatedUrl
         dest artProZip
         onlyIfNewer true
-        overwrite false
     }
 }
 
@@ -118,6 +123,107 @@ task cleanArtPro() {
     doLast {
         def cmd = "rm -rf ${getPath(artDir)}"
         execute(cmd)
+    }
+}
+
+task updateArtPro() {
+    // download the newest version first, if there is one
+    dependsOn downloadArtPro
+    doLast {
+        // can't extract the new version without the zip
+        if (!artProZip.exists()) {
+            throw new RuntimeException("The Artifactory Pro zip file $artProZip.path does not exist")
+        }
+        println "Updating Artifactory ..."
+        if (!artDir.directory) {
+            if (artDir.exists()) artDir.delete()
+            artDir.mkdirs()
+        }
+        // read the new version number from the zip early, in case it's already installed
+        def newArtVersion = null
+        for (def line : "unzip -l $artProZip.path".execute().inputStream.readLines()) {
+            def match = line =~ 'artifactory-powerpack-([^/]*)'
+            if (match.count > 0) {
+                newArtVersion = match[0][1]
+                break
+            }
+        }
+        if (newArtVersion != null && new File(artDir, "artifactory-powerpack-$newArtVersion").directory) {
+            println "Artifactory is already up to date: nothing to be done"
+            return
+        }
+        def tmpfile = new File(artDir, "tmp-${new Random().nextInt()}")
+        try {
+            // extract the new version from the zip, and set it up
+            tmpfile.mkdir()
+            execute("bash ${getPath(installSh)} ${getPath(etcDir)} ${getPath(localDir)} ${getPath(tmpfile)}")
+            def newArtifactories = tmpfile.listFiles()
+            if (newArtifactories.length != 1) {
+                throw new RuntimeException("Artifactory was not extracted correctly")
+            }
+            def newArtifactorySrc = newArtifactories[0]
+            def newArtifactoryDst = new File(artDir, newArtifactorySrc.name)
+            // there should only be one Artifactory already installed, but if there is more than one,
+            // find the most recent and delete the others
+            def oldArtifactory = null
+            for (File file : artDir.listFiles()) {
+                if (file.directory && file.name.startsWith('artifactory-powerpack-')) {
+                    if (oldArtifactory == null) {
+                        oldArtifactory = file
+                    } else if (file.lastModified() > oldArtifactory.lastModified()) {
+                        GFileUtils.deleteDirectory(oldArtifactory)
+                        oldArtifactory = file
+                    } else {
+                        GFileUtils.deleteDirectory(file)
+                    }
+                }
+            }
+            // if there aren't any old installs, move the new copy to the correct location
+            if (oldArtifactory == null) {
+                GFileUtils.moveDirectory(newArtifactorySrc, newArtifactoryDst)
+                GFileUtils.deleteDirectory(tmpfile)
+                println "Artifactory updated successfully"
+                return
+            }
+            // upgrade the old install with the contents of the new package
+            // (follows the instructions on the wiki)
+            def tomcatlib = new File(newArtifactorySrc, 'tomcat/lib')
+            GFileUtils.copyFile(new File(oldArtifactory, 'tomcat/conf/server.xml'), new File(newArtifactorySrc, 'tomcat/conf/server.xml'))
+            for (File srcfile : new File(oldArtifactory, 'tomcat/lib').listFiles()) {
+                def dstfile = new File(tomcatlib, srcfile.name)
+                if (!dstfile.exists()) GFileUtils.copyFile(srcfile, dstfile)
+            }
+            // ensure that the files that need to be moved exist
+            def warsrc = new File(newArtifactorySrc, 'webapps/artifactory.war')
+            def wardst = new File(oldArtifactory, 'webapps/artifactory.war')
+            def tomcatsrc = new File(newArtifactorySrc, 'tomcat')
+            def tomcatdst = new File(oldArtifactory, 'tomcat')
+            def binsrc = new File(newArtifactorySrc, 'bin')
+            def bindst = new File(oldArtifactory, 'bin')
+            def etcsrc = new File(newArtifactorySrc, 'etc')
+            def etcdst = new File(oldArtifactory, 'etc')
+            if (!warsrc.exists() || !tomcatsrc.directory || !binsrc.directory || !etcsrc.directory) {
+                throw new RuntimeException("Some files necessary for update do not exist")
+            }
+            // move the files
+            if (!wardst.parentFile.directory) wardst.parentFile.mkdirs()
+            GFileUtils.copyFile(warsrc, wardst)
+            if (!tomcatdst.parentFile.directory) tomcatdst.parentFile.mkdirs()
+            if (tomcatdst.directory) GFileUtils.deleteDirectory(tomcatdst)
+            GFileUtils.moveDirectory(tomcatsrc, tomcatdst)
+            if (!bindst.parentFile.directory) bindst.parentFile.mkdirs()
+            if (bindst.directory) GFileUtils.deleteDirectory(bindst)
+            GFileUtils.moveDirectory(binsrc, bindst)
+            if (!etcdst.parentFile.directory) etcdst.parentFile.mkdirs()
+            if (etcdst.directory) GFileUtils.deleteDirectory(etcdst)
+            GFileUtils.moveDirectory(etcsrc, etcdst)
+            // move the upgraded copy to the correct location
+            GFileUtils.moveDirectory(oldArtifactory, newArtifactoryDst)
+            GFileUtils.deleteDirectory(tmpfile)
+            println "Artifactory updated successfully"
+        } finally {
+            if (tmpfile.directory) GFileUtils.deleteDirectory(tmpfile)
+        }
     }
 }
 
