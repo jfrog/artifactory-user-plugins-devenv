@@ -306,8 +306,26 @@ def linkPlugin(def fullPrefix,def prefix, File userPlugins) {
         throw new InvalidUserDataException('Specified plugin not found')
     def setupFile = new File(new File(userPlugins, fullPrefix), 'setup.groovy')
     if (setupFile.isFile()) {
+        def setupBinding = new Binding()
+        setupBinding.installLibraries = { locallibs, globallibs = [] ->
+            def libdir = new File('./etc/plugins/lib')
+            def artdir = new File('./artifactory').listFiles().find {
+                it.name.startsWith('artifactory-powerpack-')
+            }
+            if (artdir == null) artdir = libdir
+            else artdir = new File(artdir, 'tomcat/webapps/artifactory/WEB-INF/lib')
+            if (!libdir.exists()) libdir.mkdirs()
+            if (!artdir.exists()) artdir.mkdirs()
+            for (def libs : [[locallibs, libdir], [globallibs, artdir]]) {
+                for (def lib : libs[0]) {
+                    def url = new URL("https://jcenter.bintray.com/$lib")
+                    def file = new File(libs[1], lib.substring(lib.lastIndexOf('/') + 1))
+                    if (!file.exists()) file.newOutputStream() << url.openStream()
+                }
+            }
+        }
         logger.quiet 'Setup file found. Executing ...'
-        run(setupFile)
+        new GroovyShell(setupBinding).evaluate(setupFile)
         logger.quiet '... Done'
     }
 }
