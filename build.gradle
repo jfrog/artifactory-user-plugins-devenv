@@ -63,6 +63,8 @@ task downloadArtPro << {
         src updatedUrl
         dest artProZip
         onlyIfNewer true
+        username basicUser
+        password basicPass
     }
 }
 
@@ -143,14 +145,14 @@ task updateArtPro() {
         def newArtVersion = null
         def pathStream = "unzip -l $artProZip.path".execute().inputStream
         for (def line : pathStream.readLines()) {
-            def match = line =~ 'artifactory-powerpack-([^/]*)'
+            def match = line =~ 'artifactory-(?:pro|powerpack)-[^/]*'
             if (match.count > 0) {
-                newArtVersion = match[0][1]
+                newArtVersion = match[0]
                 break
             }
         }
         pathStream.close()
-        if (newArtVersion != null && new File(artDir, "artifactory-powerpack-$newArtVersion").directory) {
+        if (newArtVersion != null && new File(artDir, newArtVersion).directory) {
             println "Artifactory is already up to date: nothing to be done"
             return
         }
@@ -169,7 +171,8 @@ task updateArtPro() {
             // find the most recently modified one
             def oldArtifactory = null
             for (File file : artDir.listFiles()) {
-                if (file.directory && file.name.startsWith('artifactory-powerpack-')) {
+                if (file.directory && (file.name.startsWith('artifactory-pro-')
+                        || file.name.startsWith('artifactory-powerpack-'))) {
                     if (oldArtifactory == null || file.lastModified() > oldArtifactory.lastModified()) {
                         oldArtifactory = file
                     }
@@ -310,7 +313,7 @@ def linkPlugin(def fullPrefix,def prefix, File userPlugins) {
         setupBinding.installLibraries = { locallibs, globallibs = [] ->
             def libdir = new File('./etc/plugins/lib')
             def artdir = new File('./artifactory').listFiles().find {
-                it.name.startsWith('artifactory-powerpack-')
+                it.name.startsWith('artifactory-pro-') || it.name.startsWith('artifactory-powerpack-')
             }
             if (artdir == null) artdir = libdir
             else artdir = new File(artdir, 'tomcat/webapps/artifactory/WEB-INF/lib')

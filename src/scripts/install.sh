@@ -22,7 +22,7 @@ fi
 
 cd "$artDir" || exit 4
 
-ls -1 "$artDir" | grep "artifactory-powerpack" > /tmp/allPowerPackDirs.txt
+ls -1 "$artDir" | grep -e "artifactory-pro" -e "artifactory-powerpack" > /tmp/allPowerPackDirs.txt
 if [ `wc -l </tmp/allPowerPackDirs.txt` -gt 0 ]; then
     for artHome in `cat /tmp/allPowerPackDirs.txt`; do
         echo "WARN: Moving current Artifactory homes $artHome"
@@ -31,7 +31,7 @@ if [ `wc -l </tmp/allPowerPackDirs.txt` -gt 0 ]; then
 fi
 
 unzip -d "$artDir" "$proZip" || exit 6
-artHome=`ls -1 "$artDir" | grep "artifactory-powerpack"`
+artHome=`ls -1 "$artDir" | grep -e "artifactory-pro" -e "artifactory-powerpack"`
 
 if [ ! -d "$artHome" ]; then
     echo "ERROR Artifactory home '$artHome' is not a directory"
