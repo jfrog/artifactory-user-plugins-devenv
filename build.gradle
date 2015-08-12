@@ -3,11 +3,7 @@ buildscript {
         maven {
             url = project.hasProperty('artifactory_contextUrl') ? "${artifactory_contextUrl}/jcenter" : 'https://jcenter.bintray.com'
         }
-        //mavenLocal()
     }
-    //dependencies {
-    //    classpath 'de.undercouch:gradle-download-task:1.2'
-    //}
 }
 
 import de.undercouch.gradle.tasks.download.Download
@@ -38,9 +34,11 @@ def artDir = new File('artifactory')
 def artProZip = new File(localDir, 'artifactory-pro.zip')
 
 def getArtVersion() {
-    if (artifactoryVersion == "_latest") {
+    if (!project.hasProperty('artifactoryVersion')) {
+        return null
+    } else if (artifactoryVersion == "_latest") {
         try {
-            def url = new URL("https://api.bintray.com/packages/jfrog/artifactory-pro/artifactory-powerpack-standalone")
+            def url = new URL("https://api.bintray.com/packages/jfrog/artifactory-pro/jfrog-artifactory-pro-zip")
             def json = new JsonSlurper().parse(url)
             artifactoryVersion = json.latest_version
             return json.latest_version
@@ -57,14 +55,21 @@ dependencies {
 }
 
 task downloadArtPro << {
-    def updatedUrl = artifactoryDownloadUrl.replaceAll('\\[VERSION]', getArtVersion())
+    def downloadurl
+    def version = getArtVersion()
+    if (!project.hasProperty('artifactoryDownloadUrl')) {
+        if (version.startsWith("4.")) {
+            downloadurl = "https://dl.bintray.com/jfrog/artifactory-pro/org/artifactory/pro/jfrog-artifactory-pro/[VERSION]/jfrog-artifactory-pro-[VERSION].zip"
+        } else {
+            downloadurl = "https://dl.bintray.com/jfrog/artifactory-pro/org/artifactory/powerpack/artifactory-powerpack-standalone/[VERSION]/artifactory-powerpack-standalone-[VERSION].zip"
+        }
+    } else downloadurl = artifactoryDownloadUrl
+    def updatedUrl = downloadurl.replaceAll('\\[VERSION]', version)
     println "Downloading $updatedUrl into ${artProZip.getPath()}"
     download {
         src updatedUrl
         dest artProZip
         onlyIfNewer true
-        username basicUser
-        password basicPass
     }
 }
 
