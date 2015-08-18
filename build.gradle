@@ -13,7 +13,7 @@ import java.nio.file.Files
 
 plugins {
     //Check the latest version on bintray: https://bintray.com/jfrog/jfrog-jars/build-info-extractor-gradle/view
-    id "com.jfrog.artifactory" version "3.1.0"
+    id "com.jfrog.artifactory" version "3.1.1"
     id "de.undercouch.download" version "1.2"
 }
 
@@ -21,6 +21,12 @@ apply plugin: 'java'
 apply plugin: 'groovy'
 apply plugin: 'idea'
 apply plugin: 'eclipse'
+
+test {
+    testLogging {
+        showStandardStreams = true
+    }
+}
 
 version = "$currentVersion"
 group = 'org.jfrog.art-plugin-dev'
@@ -51,7 +57,7 @@ def getArtVersion() {
 dependencies {
     compile(group: 'org.jfrog.artifactory.client', name: 'artifactory-java-client-services', version: '0.15')
     testCompile(group: 'org.spockframework', name: 'spock-core', version: '0.7-groovy-2.0')
-    compile(group: 'org.artifactory', name: 'artifactory-standalone', classifier: 'tests', version: "${getArtVersion()}")
+    compile(group: 'org.artifactory', name: 'artifactory-standalone', classifier: 'tests', version: '3.9.4')
 }
 
 task downloadArtPro << {
