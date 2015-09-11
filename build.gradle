@@ -23,6 +23,7 @@ apply plugin: 'idea'
 apply plugin: 'eclipse'
 
 test {
+    outputs.upToDateWhen { false }
     testLogging {
         showStandardStreams = true
     }
