@@ -284,6 +284,7 @@ def linkPlugin(def fullPrefix,def prefix, File userPlugins) {
     def etcDir = new File(projectDir, 'etc')
     def lnPath = new File(etcDir, 'plugins')
     def lnTestPath = new File(projectDir, 'src/test/groovy')
+    def testprefix = prefix.substring(0, 1).toUpperCase() + prefix.substring(1) + 'Test'
     for (def pluginFile : new File(userPlugins, fullPrefix).listFiles()) {
         def fileName = pluginFile.getName()
         if (fileName.startsWith(prefix + '.')) {
@@ -294,7 +295,7 @@ def linkPlugin(def fullPrefix,def prefix, File userPlugins) {
                 success = false;
                 logger.warn "WARN: Failed to link file ${fileName}"
             }
-        } else if (fileName == prefix + 'Test.groovy') {
+        } else if (fileName == testprefix + '.groovy') {
             if (!"ln -s ${pluginFile.getCanonicalPath()} ${lnTestPath.getPath()}".execute().waitFor()) {
                 linked = true;
                 logger.quiet "Linked test file ${fileName}"
@@ -303,7 +304,7 @@ def linkPlugin(def fullPrefix,def prefix, File userPlugins) {
                 logger.warn "WARN: Failed to link test file ${fileName}"
             }
         } else if (fileName == 'test' && pluginFile.isDirectory()) {
-            def lnDest = new File(lnTestPath, prefix + 'Test')
+            def lnDest = new File(lnTestPath, testprefix)
             if (!"ln -s  ${pluginFile.getCanonicalPath()} ${lnDest.getPath()}".execute().waitFor()) {
                 linked = true;
                 logger.quiet "Linked test directory"
@@ -354,6 +355,7 @@ task stopWorkOnPlugin << {
         throw new InvalidUserDataException('No plugin specified')
     def success = true, removed = false;
     def prefix = new File(System.properties.pluginName).getName()
+    def testprefix = prefix.substring(0, 1).toUpperCase() + prefix.substring(1) + 'Test'
     for (def lnPath : new File(etcDir, 'plugins').listFiles()) {
         def lnName = lnPath.getName()
         if ((System.properties.pluginName == 'all' || lnName.startsWith(prefix + '.'))
@@ -369,7 +371,7 @@ task stopWorkOnPlugin << {
     }
     for (def lnPath : new File(projectDir, 'src/test/groovy').listFiles()) {
         def lnName = lnPath.getName()
-        if ((System.properties.pluginName == 'all' || lnName == prefix + 'Test.groovy' || lnName == prefix + 'Test')
+        if ((System.properties.pluginName == 'all' || lnName == testprefix + '.groovy' || lnName == testprefix)
                 && Files.isSymbolicLink(lnPath.toPath())) {
             if (lnPath.delete()) {
                 removed = true;
