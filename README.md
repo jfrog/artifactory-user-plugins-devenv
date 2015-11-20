@@ -23,7 +23,8 @@ To unlink a plugin: `./gradlew stopWorkOnPlugin -DpluginName=plugin/name`
 To unlink all plugins: `./gradlew stopWorkOnPlugin -DpluginName=all`
 
 Then you can run the tests present in
-`artifactory-user-plugins-devenv/src/test/groovy` using your IDE.
+`artifactory-user-plugins-devenv/src/test/groovy` using your IDE, or with
+`./gradlew test`.
 
 To stop Artifactory: `./gradlew stopArtPro`  
 To restart Artifactory: `./gradlew restartArtPro`  
