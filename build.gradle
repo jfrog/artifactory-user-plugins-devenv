@@ -57,7 +57,9 @@ def getArtVersion() {
 
 dependencies {
     compile(group: 'org.jfrog.artifactory.client', name: 'artifactory-java-client-services', version: '0.15')
-    testCompile(group: 'org.spockframework', name: 'spock-core', version: '0.7-groovy-2.0')
+    testCompile(group: 'org.spockframework', name: 'spock-core', version: '0.7-groovy-2.0') {
+        exclude module : 'groovy-all'
+    }
     compile(group: 'org.artifactory', name: 'artifactory-standalone', classifier: 'tests', version: '3.9.4')
 }
 
