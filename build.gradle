@@ -60,6 +60,7 @@ dependencies {
     testCompile(group: 'org.spockframework', name: 'spock-core', version: '0.7-groovy-2.0') {
         exclude module : 'groovy-all'
     }
+    testCompile(group: 'com.icegreen', name: 'greenmail', version: '1.4.1')
     compile(group: 'org.artifactory', name: 'artifactory-standalone', classifier: 'tests', version: '3.9.4')
 }
 
