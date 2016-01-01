@@ -10,6 +10,7 @@ import de.undercouch.gradle.tasks.download.Download
 import groovy.io.FileType
 import groovy.json.JsonSlurper
 import java.nio.file.Files
+import java.net.URL
 
 plugins {
     //Check the latest version on bintray: https://bintray.com/jfrog/jfrog-jars/build-info-extractor-gradle/view
@@ -354,8 +355,9 @@ def linkPlugin(def fullPrefix,def prefix, File userPlugins) {
 // usage: ./gradlew stopWorkOnPlugin -DpluginName=all
 // remove links to all plugins and any supplementary files from the dev environment, and restart artifactory
 task stopWorkOnPlugin << {
-    if (!System.properties.pluginName)
+    if (!System.properties.pluginName) {
         throw new InvalidUserDataException('No plugin specified')
+    }
     def success = true, removed = false;
     def prefix = new File(System.properties.pluginName).getName()
     def testprefix = prefix.substring(0, 1).toUpperCase() + prefix.substring(1) + 'Test'
@@ -385,18 +387,52 @@ task stopWorkOnPlugin << {
             }
         }
     }
-    if (success && removed)
+    if (success && removed) {
         println 'All specified plugin links successfully removed from environment'
-    else if (!success)
+    } else if (!success) {
         println 'Warning: Some plugin links could not be removed'
-    else if (System.properties.pluginName == 'all')
+    } else if (System.properties.pluginName == 'all') {
         throw new InvalidUserDataException('No plugins found in plugins directory')
-    else
+    } else {
         throw new InvalidUserDataException('Specified plugin not found in plugins directory')
-    println 'Restarting artifactory ...'
-    execute("bash ${getPath(control)} ${getPath(artDir)} stop")
-    execute("bash ${getPath(control)} ${getPath(artDir)} start")
-    println '... Done'
+    }
+    def artifDir = null
+    for (File file : new File(projectDir, 'artifactory/').listFiles()) {
+        if (file.directory && (file.name.startsWith('artifactory-pro-')
+                               || file.name.startsWith('artifactory-powerpack-'))) {
+            if (artifDir == null || file.lastModified() > artifDir.lastModified()) {
+                artifDir = file
+            }
+        }
+    }
+    if (new File(artifDir, 'run')?.list()?.length) {
+        println 'Reloading plugins ...'
+        def url = 'http://localhost:8088/artifactory/api/plugins/reload'
+        def auth = "Basic ${'admin:password'.bytes.encodeBase64().toString()}"
+        def conn = null, stat = null, txt = null
+        try {
+            conn = new URL(url).openConnection()
+            conn.setRequestProperty('Authorization', auth)
+            conn.requestMethod = 'POST'
+            stat = conn.responseCode
+            try {
+                txt = conn.inputStream.text
+            } catch (Exception ex) {
+                txt = conn.errorStream.text
+            }
+        } finally {}
+        if (stat == 404 && txt == "No plugins found to reload") {
+            println "$txt"
+        } else if (stat != 200) {
+            println "Error: could not access REST API for reload: $conn.responseCode"
+            println "$txt"
+            println 'Restarting artifactory ...'
+            execute("bash ${getPath(control)} ${getPath(artDir)} stop")
+            execute("bash ${getPath(control)} ${getPath(artDir)} start")
+        }
+        conn.disconnect()
+        println '... Done'
+    }
 }
 
 artifactory {
