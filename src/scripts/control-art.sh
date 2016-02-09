@@ -60,8 +60,8 @@ waitServerStarts() {
           if [ -n "$startMessage" ]; then
             echo "INFO: Found start message in $artLog after $nbSeconds!"
             echo "INFO: $startMessage"
-            echo "INFO: Waiting 2 seconds for jersey to finish"
-            sleep 2
+            echo "INFO: Waiting 7 seconds for jersey to finish"
+            sleep 7
             return 0
           fi
         fi
