@@ -61,8 +61,8 @@ dependencies {
         exclude module : 'groovy-all'
     }
     testCompile(group: 'com.icegreen', name: 'greenmail', version: '1.4.1')
-    compile(group: 'org.artifactory', name: 'artifactory-standalone', classifier: 'tests', version: '3.9.4')
-    compile(group: 'org.jfrog.artifactory.client', name: 'artifactory-java-client-services', version: '1.1.0')
+    compile(group: 'org.artifactory', name: 'artifactory-standalone', classifier: 'tests', version: '4.4.3')
+    compile(group: 'org.jfrog.artifactory.client', name: 'artifactory-java-client-services', version: '1.2.2')
 }
 
 task downloadArtPro << {

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-[ ! -d "$1" ] && echo 'Usage: start-art.sh artifactoryDir' && exit 1
+[ ! -d "$1" ] && echo 'Usage: control-art.sh artifactoryDir' && exit 1
 
 artHome=`ls -1 "$1" | grep -e "artifactory-pro" -e "artifactory-powerpack"`
 [ -z "$artHome" ] && echo "Usage: No powerpack unzipped at $1" && exit 1
