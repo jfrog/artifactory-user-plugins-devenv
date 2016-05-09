@@ -82,6 +82,7 @@ task downloadArtPro << {
         src updatedUrl
         dest artProZip
         onlyIfNewer true
+        quiet true
     }
 }
 
