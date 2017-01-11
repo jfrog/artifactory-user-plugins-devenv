@@ -38,6 +38,7 @@ if [ ! -d "$artHome" ]; then
     exit 7
 fi
 
+ln -fs "$artHome" "$artDir/artifactory"
 mkdir -p "$artHome"/etc || ( echo "can't create etc dir $?" && exit 8)
 
 # Now we have a Artifactory home dir and the default etc folder
