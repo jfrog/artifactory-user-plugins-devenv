@@ -1,0 +1,185 @@
+#!/usr/bin/env groovy
+import java.io.File
+import static groovy.io.FileType.FILES
+
+// Instructions for setting up Jenkins 
+// 1. Setup slaves - for this example four Jenkins slaves are used for the unit tests to complete within 40 minutes. 
+// 2. Set number of executor = 1 for each slave.  More than one causes multiple workspaces to be created and Jenkins will not be able to retrieve the test results.  
+// 3. Change the labels below with the name of the Jenkins slaves. 
+// 4. Jenkins master is 'master'
+// 5. Run this Jenkins file in the Jenkins pipeline. 
+
+def pluginList = []
+
+// Jenkins Parallel Queues
+def stepsForParallel = [:]
+def cleanupSlaves = [:]
+def builders =[:]
+
+// four Jenkins slave - set number of executor = 1
+def labels =['jslave1', 'jslave2', 'jslave3', 'jslave4']
+
+//
+// create list of all user plugins 
+//
+node ('master') {
+
+    stage ('Create Plugin List') {
+        git url: 'https://github.com/JFrogDev/artifactory-user-plugins.git'
+        copyPluginList(userPluginList(new File("${env.WORKSPACE}/artifactory-user-plugins/")))
+        printUserPluginList ()
+    }
+    stage ('Prepare Slaves') {
+        println "Prepare and start artifactory on the slaves"
+        for (x in labels) {
+            def label = x
+            builders[label] = buildersOnSlaves(label)
+        }
+        parallel builders
+    }
+}
+
+//
+// Run unit tests on all the availabe Jenkins Slaves
+//
+try {
+    node ('master') {
+        stage ("Unit Test") {
+            println "Unit Test started"
+            def numberPlugins = getPluginSize()        
+            for (i = 0; i < numberPlugins; i++ ) {
+                def stepName = getPluginIndex(i)
+                stepsForParallel[stepName] = runUserPluginTest(stepName)
+            }
+            parallel stepsForParallel
+        }
+    } 
+} catch (Exception e) {
+    println "Caught exception at Unit Test: ${e.message}"    
+} finally {
+    node ('master') {
+        stage ("Clean Up") {
+            println "Clean up started"
+            for (x in labels) {
+                def label = x
+                cleanupSlaves[label] = cleanUpSlaves(label)
+            }
+            parallel cleanupSlaves    
+        }
+    }
+}
+
+node ('master') {
+    stage ('Deploy') {
+        reportOnTestsForBuild()
+    }
+}
+
+//
+// utilities
+//
+def getPluginSize () {
+    return pluginList.size()
+}
+
+def getPluginIndex (index) {
+    return pluginList[index]
+}
+
+def printUserPluginList () {
+    for (i = 0; i < pluginList.size(); i++) {
+        println pluginList[i]
+    }
+}
+
+@NonCPS
+def userPluginList (filepath) {
+    def list = []
+    filepath.eachFileRecurse(FILES) { file ->
+        if (file.name.endsWith('.groovy') && file.name != 'setup.groovy' && !file.name.endsWith('Test.groovy')) {
+           String prefix = "${file.name.minus('.groovy')}"
+           String tmp = file.absolutePath.minus("/$file.name")
+           String fullPrefix = tmp.minus("$filepath.absolutePath/")
+           list << fullPrefix                
+        }
+    }
+    return list
+}
+
+def copyPluginList (pList) {
+    pluginList = pList
+}
+
+def buildersOnSlaves (label) {
+    return {
+        node (label) {
+            stage ('Git Clone') {
+                step([$class: 'WsCleanup'])
+                dir ('artifactory-user-plugins') {
+                    git url: 'https://github.com/JFrogDev/artifactory-user-plugins.git'
+                }
+                dir ('artifactory-user-plugins-devenv') {
+                    git url: 'https://github.com/JFrogDev/artifactory-user-plugins-devenv.git'
+                }
+            }
+            stage ('Prepare Artifactory Dev') {
+                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew prepareArtPro -PBuild_NUMBER=${env.BUILD_NUMBER}"
+                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew startArtPro -PBuild_NUMBER=${env.BUILD_NUMBER}"
+            }
+        }
+    }
+}
+
+def runUserPluginTest (pluginName) {
+    return {
+        node ('artuserplugin') {
+            echo "User Plugin Test: ${pluginName}"
+            try {
+                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew workOnPlugin -DpluginName=${pluginName}"
+                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew test"
+            } catch (Exception e) {
+                println "Caught Exception with plugin ${pluginName}. Message ${e.message}"
+
+            } finally {
+                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew stopWorkOnPlugin -DpluginName=all" 
+                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew restartArtPro"
+            }
+        }
+    }
+}
+
+def cleanUpSlaves (label) {
+    return {
+        node (label) {
+            try {
+                step([$class: 'JUnitResultArchiver', testResults: '**/build/test-results/*.xml'])
+            } catch (Exception e) {
+                println "Caught exception while archiving test results. ${e.message}"
+            } finally {
+                    sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew stopArtPro"
+                    sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew cleanArtPro"
+            }
+  
+        }
+    }
+}
+
+def reportOnTestsForBuild () {
+    def failedTests = []
+    def build = manager.build
+    if (build.getAction(hudson.tasks.junit.TestResultAction.class) == null) {
+        return ("No Tests")
+    }
+    def result = build.getAction(hudson.tasks.junit.TestResultAction.class).result
+    if ((result == null) || (result.failCount < 1)) {
+        println "No test results"
+    } else {
+        println "Failed test count: " + result.getFailCount() 
+        println "Passed test count: " + result.getPassCount()
+        failedTests = result.getFailedTests()
+        failedTests.each { test ->
+            println test.name
+        }
+    }
+}
+
