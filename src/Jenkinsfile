@@ -25,9 +25,8 @@ def labels =['jslave1', 'jslave2', 'jslave3', 'jslave4']
 node ('master') {
 
     stage ('Create Plugin List') {
-        git url: 'https://github.com/JFrogDev/artifactory-user-plugins-devenv.git'
         git url: 'https://github.com/JFrogDev/artifactory-user-plugins.git'
-        copyPluginList(userPluginList(new File("${env.WORKSPACE}/artifactory-user-plugins/")))
+        copyPluginList(userPluginList(new File("${env.WORKSPACE}")))
         printUserPluginList ()
     }
     stage ('Prepare Slaves') {
