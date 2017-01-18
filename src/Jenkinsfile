@@ -164,6 +164,7 @@ def cleanUpSlaves (label) {
     }
 }
 
+@NonCPS
 def reportOnTestsForBuild () {
     def failedTests = []
     def build = manager.build
