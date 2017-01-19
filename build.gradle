@@ -14,8 +14,8 @@ import java.net.URL
 
 plugins {
     //Check the latest version on bintray: https://bintray.com/jfrog/jfrog-jars/build-info-extractor-gradle/view
-    id "com.jfrog.artifactory" version "3.1.1"
-    id "de.undercouch.download" version "1.2"
+    id "com.jfrog.artifactory" version "4.4.3"
+    id "de.undercouch.download" version "3.1.2"
 }
 
 repositories {
@@ -52,13 +52,22 @@ def getArtVersion() {
         return null
     } else if (artifactoryVersion == "_latest") {
         try {
-            def url = new URL("https://api.bintray.com/packages/jfrog/artifactory-pro/jfrog-artifactory-pro-zip")
-            def json = new JsonSlurper().parse(url)
-            artifactoryVersion = json.latest_version
-            return json.latest_version
+            def url = new URL("https://repo.jfrog.io/artifactory/api/search/latestVersion?g=org.artifactory.pro&a=jfrog-artifactory-pro&repos=libs-releases-local")
+            def conn = url.openConnection()
+            conn.addRequestProperty('Authorization', "Basic ${"$username:$password".bytes.encodeBase64()}")
+            artifactoryVersion = conn.inputStream.text
+            return artifactoryVersion
         } catch (Exception ex) {
             throw new IOException("Could not retrieve the latest Artifactory version number from bintray.", ex)
         }
+        // try {
+        //     def url = new URL("https://api.bintray.com/packages/jfrog/artifactory-pro/jfrog-artifactory-pro-zip")
+        //     def json = new JsonSlurper().parse(url)
+        //     artifactoryVersion = json.latest_version
+        //     return json.latest_version
+        // } catch (Exception ex) {
+        //     throw new IOException("Could not retrieve the latest Artifactory version number from bintray.", ex)
+        // }
     } else return artifactoryVersion
 }
 
@@ -69,14 +78,16 @@ dependencies {
     testCompile(group: 'com.icegreen', name: 'greenmail', version: '1.4.1')
     compile(group: 'org.codehaus.groovy', name: 'groovy-all', version: '2.4.5')
     compile(group: 'org.artifactory.oss', name: 'jfrog-artifactory-oss', version: '4.7.1')
-    compile(group: 'org.jfrog.artifactory.client', name: 'artifactory-java-client-services', version: '1.2.2')
+    compile(group: 'org.jfrog.artifactory.client', name: 'artifactory-java-client-services', version: '2.0.0')
 }
 
 task downloadArtPro << {
     def downloadurl
     def version = getArtVersion()
     if (!project.hasProperty('artifactoryDownloadUrl')) {
-        if (version.startsWith("4.")) {
+        if (version.startsWith("5.")) {
+            downloadurl = "http://repo.jfrog.io/artifactory/libs-releases-local/org/artifactory/pro/jfrog-artifactory-pro/[VERSION]/jfrog-artifactory-pro-[VERSION].zip"
+        } else if (version.startsWith("4.")) {
             downloadurl = "https://dl.bintray.com/jfrog/artifactory-pro/org/artifactory/pro/jfrog-artifactory-pro/[VERSION]/jfrog-artifactory-pro-[VERSION].zip"
         } else {
             downloadurl = "https://dl.bintray.com/jfrog/artifactory-pro/org/artifactory/powerpack/artifactory-powerpack-standalone/[VERSION]/artifactory-powerpack-standalone-[VERSION].zip"
@@ -84,7 +95,14 @@ task downloadArtPro << {
     } else downloadurl = artifactoryDownloadUrl
     def updatedUrl = downloadurl.replaceAll('\\[VERSION]', version)
     println "Downloading $updatedUrl into ${artProZip.getPath()}"
+    def creds = null
+    if (project.hasProperty('username') && project.hasProperty('password')) {
+        creds = "$username:$password".bytes.encodeBase64().toString()
+    }
     download {
+        if (creds) {
+            headers(['Authorization': "Basic $creds".toString()])
+        }
         src updatedUrl
         dest artProZip
         onlyIfNewer true
