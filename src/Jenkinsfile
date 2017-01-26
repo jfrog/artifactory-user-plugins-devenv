@@ -25,17 +25,33 @@ def labels =['jslave1', 'jslave2', 'jslave3', 'jslave4']
 node ('master') {
 
     stage ('Create Plugin List') {
-        git url: 'https://github.com/JFrogDev/artifactory-user-plugins.git'
+        git url: 'https://github.com/JFrogDev/artifactory-user-plugins.git' 
         copyPluginList(userPluginList(new File("${env.WORKSPACE}")))
         printUserPluginList ()
     }
+
     stage ('Prepare Slaves') {
-        println "Prepare and start artifactory on the slaves"
-        for (x in labels) {
-            def label = x
-            builders[label] = buildersOnSlaves(label)
+        println "Prepare and start artifactory branch '${ARTDEVENVBRANCH}' on the slaves"
+        def server = Artifactory.server SERVER_ID
+
+        dir ('artifactory-user-plugins-devenv') {
+            git url: 'https://github.com/JFrogDev/artifactory-user-plugins-devenv.git', branch: "${ARTDEVENVBRANCH}"
+            sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv"
+            withCredentials([usernamePassword(credentialsId: '1abe9bc9-f1b4-46f4-955c-7099ce3e2c84', passwordVariable: 'repoPwd', usernameVariable: 'repoUser')]) {
+                insertCredProperties ('username=xxx', "username=${repoUser}")
+                insertCredProperties ('password=yyy', "password=${repoPwd}")
+            }
+            fetchArtifactoryLicense (server)
+            stash name: "gradle-property", includes: "gradle.properties"
+            stash name: "artifactory-lic", includes: "artifactory.lic"
+
+
+            for (x in labels) {
+                def label = x
+                builders[label] = buildersOnSlaves(label, ARTDEVENVBRANCH)
+            }
+            parallel builders
         }
-        parallel builders
     }
 }
 
@@ -78,6 +94,19 @@ node ('master') {
 //
 // utilities
 //
+
+def fetchArtifactoryLicense (server) {
+    def downloadSpec = """{
+        "files": [
+                {
+                    "pattern": "artifactory-lic/artifactory.lic",
+                    "target": "${env.WORKSPACE}/artifactory-user-plugins-devenv/"
+                }
+            ]
+        }"""
+    server.download spec: downloadSpec
+}
+
 def getPluginSize () {
     return pluginList.size()
 }
@@ -110,24 +139,43 @@ def copyPluginList (pList) {
     pluginList = pList
 }
 
-def buildersOnSlaves (label) {
+def buildersOnSlaves (label, artbranch) {
     return {
         node (label) {
-            stage ('Git Clone') {
-                step([$class: 'WsCleanup'])
-                dir ('artifactory-user-plugins') {
-                    git url: 'https://github.com/JFrogDev/artifactory-user-plugins.git'
-                }
-                dir ('artifactory-user-plugins-devenv') {
-                    git url: 'https://github.com/JFrogDev/artifactory-user-plugins-devenv.git'
-                }
+            step([$class: 'WsCleanup'])
+            dir ('artifactory-user-plugins') {
+                git url: 'https://github.com/JFrogDev/artifactory-user-plugins.git'
             }
-            stage ('Prepare Artifactory Dev') {
-                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew prepareArtPro -PBuild_NUMBER=${env.BUILD_NUMBER}"
-                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew startArtPro -PBuild_NUMBER=${env.BUILD_NUMBER}"
+            dir ('artifactory-user-plugins-devenv') {
+                git url: 'https://github.com/JFrogDev/artifactory-user-plugins-devenv.git', branch: artbranch
+                unstash "gradle-property"
+                unstash "artifactory-lic"
+                sh "cp artifactory.lic ${env.WORKSPACE}/artifactory-user-plugins-devenv/local-store/"
             }
+
+            sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew prepareArtPro -PBuild_NUMBER=${env.BUILD_NUMBER}"
+            sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew startArtPro -PBuild_NUMBER=${env.BUILD_NUMBER}"
         }
     }
+}
+
+@NonCPS
+def insertCredProperties (toReplace, byString) {
+    try {
+        def property = new File("${env.WORKSPACE}/artifactory-user-plugins-devenv/gradle.properties")
+        processFileInPlace (property) { text ->
+            text.replace(toReplace, byString)
+        }
+    } catch (Exception e) {
+        println "Exception caught while inserting credentials. Exception: " + e.message 
+        throw e
+    }
+}
+
+@NonCPS
+def processFileInPlace (file, Closure processText) {
+    def text = file.text
+    file.write(processText(text))
 }
 
 def runUserPluginTest (pluginName) {
@@ -158,8 +206,8 @@ def cleanUpSlaves (label) {
             } finally {
                     sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew stopArtPro"
                     sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew cleanArtPro"
+                    sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; rm gradle.properties"
             }
-  
         }
     }
 }
@@ -183,4 +231,5 @@ def reportOnTestsForBuild () {
         }
     }
 }
+
 
