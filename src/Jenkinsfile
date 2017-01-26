@@ -45,21 +45,11 @@ node ('master') {
             stash name: "gradle-property", includes: "gradle.properties"
             stash name: "artifactory-lic", includes: "artifactory.lic"
 
-            try {
-                for (x in labels) {
-                    def label = x
-                    builders[label] = buildersOnSlaves(label, ARTDEVENVBRANCH)
-                }
-                parallel builders
-            } catch (Exception e) {
-                println "Caught exception at preparing slaves. Cleaning up slaves"
-            } finally {
-                for (x in labels) {
-                    def label = x
-                    cleanupSlaves[label] = cleanUpSlaves(label)
-                }
-                parallel cleanupSlaves
+            for (x in labels) {
+                def label = x
+                builders[label] = buildersOnSlaves(label, ARTDEVENVBRANCH)
             }
+            parallel builders
         }
     }
 }
