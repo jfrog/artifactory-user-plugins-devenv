@@ -39,7 +39,7 @@ node ('master') {
         dir ('artifactory-user-plugins-devenv') {
             git url: 'https://github.com/JFrogDev/artifactory-user-plugins-devenv.git', branch: "${ARTDEVENVBRANCH}"
             sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv"
-            withCredentials([usernamePassword(credentialsId: '${REPO21_CRED}', passwordVariable: 'repoPwd', usernameVariable: 'repoUser')]) {
+            withCredentials([usernamePassword(credentialsId: REPO21_CRED, passwordVariable: 'repoPwd', usernameVariable: 'repoUser')]) {
                 insertCredProperties ('username=xxx', "username=${repoUser}")
                 insertCredProperties ('password=yyy', "password=${repoPwd}")
             }
