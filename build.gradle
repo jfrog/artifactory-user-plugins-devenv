@@ -76,10 +76,10 @@ task downloadArtPro << {
     def downloadurl
     def version = getArtVersion()
     if (!project.hasProperty('artifactoryDownloadUrl')) {
-        if (version.startsWith("4.")) {
-            downloadurl = "https://dl.bintray.com/jfrog/artifactory-pro/org/artifactory/pro/jfrog-artifactory-pro/[VERSION]/jfrog-artifactory-pro-[VERSION].zip"
-        } else {
+        if (version.startsWith("2.") || version.startsWith("3.")) {
             downloadurl = "https://dl.bintray.com/jfrog/artifactory-pro/org/artifactory/powerpack/artifactory-powerpack-standalone/[VERSION]/artifactory-powerpack-standalone-[VERSION].zip"
+        } else {
+            downloadurl = "https://dl.bintray.com/jfrog/artifactory-pro/org/artifactory/pro/jfrog-artifactory-pro/[VERSION]/jfrog-artifactory-pro-[VERSION].zip"
         }
     } else downloadurl = artifactoryDownloadUrl
     def updatedUrl = downloadurl.replaceAll('\\[VERSION]', version)
