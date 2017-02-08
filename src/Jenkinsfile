@@ -8,6 +8,8 @@ import static groovy.io.FileType.FILES
 // 3. Change the labels below with the name of the Jenkins slaves. 
 // 4. Jenkins master is 'master'
 // 5. Run this Jenkins file in the Jenkins pipeline. 
+// 6. Change the credential id for repo21.  The credential id is configured in Jenkins. 
+// 7. Install Git on the slaves
 
 def pluginList = []
 
@@ -37,7 +39,7 @@ node ('master') {
         dir ('artifactory-user-plugins-devenv') {
             git url: 'https://github.com/JFrogDev/artifactory-user-plugins-devenv.git', branch: "${ARTDEVENVBRANCH}"
             sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv"
-            withCredentials([usernamePassword(credentialsId: '1abe9bc9-f1b4-46f4-955c-7099ce3e2c84', passwordVariable: 'repoPwd', usernameVariable: 'repoUser')]) {
+            withCredentials([usernamePassword(credentialsId: REPO21_CRED, passwordVariable: 'repoPwd', usernameVariable: 'repoUser')]) {
                 insertCredProperties ('username=xxx', "username=${repoUser}")
                 insertCredProperties ('password=yyy', "password=${repoPwd}")
             }
