@@ -19,13 +19,13 @@ def cleanupSlaves = [:]
 def builders =[:]
 
 // four Jenkins slave - set number of executor = 1
-def labels =['jslave1', 'jslave2', 'jslave3', 'jslave4']
+def labels =['jslave1', 'jslave2', 'jslave3']
 
 //
 // create list of all user plugins 
 //
-node ('master') {
 
+node ('master') {
     stage ('Create Plugin List') {
         git url: 'https://github.com/JFrogDev/artifactory-user-plugins.git' 
         copyPluginList(userPluginList(new File("${env.WORKSPACE}")))
@@ -47,12 +47,15 @@ node ('master') {
             stash name: "gradle-property", includes: "gradle.properties"
             stash name: "artifactory-lic", includes: "artifactory.lic"
 
-
-            for (x in labels) {
-                def label = x
-                builders[label] = buildersOnSlaves(label, ARTDEVENVBRANCH)
+            try {
+                for (x in labels) {
+                    def label = x
+                    builders[label] = buildersOnSlaves(label, ARTDEVENVBRANCH)
+                }
+                parallel builders
+            } catch (Exception e) {
+                println "Caught exception at preparing slaves"
             }
-            parallel builders
         }
     }
 }
@@ -144,7 +147,13 @@ def copyPluginList (pList) {
 def buildersOnSlaves (label, artbranch) {
     return {
         node (label) {
-            step([$class: 'WsCleanup'])
+            try {
+                // stop artifactory if it happens to be still running from previous builds
+                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew cleanArtPro -PBuild_NUMBER=${env.BUILD_NUMBER}"
+            } catch (Exception e) {
+                println "Info: Exception caught while cleanup before preparing Artifactory"
+            }
+            sleep (15)
             dir ('artifactory-user-plugins') {
                 git url: 'https://github.com/JFrogDev/artifactory-user-plugins.git'
             }
@@ -154,7 +163,6 @@ def buildersOnSlaves (label, artbranch) {
                 unstash "artifactory-lic"
                 sh "cp artifactory.lic ${env.WORKSPACE}/artifactory-user-plugins-devenv/local-store/"
             }
-
             sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew prepareArtPro -PBuild_NUMBER=${env.BUILD_NUMBER}"
             sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew startArtPro -PBuild_NUMBER=${env.BUILD_NUMBER}"
         }
@@ -163,6 +171,7 @@ def buildersOnSlaves (label, artbranch) {
 
 @NonCPS
 def insertCredProperties (toReplace, byString) {
+    println "Updating gradle.properties"
     try {
         def property = new File("${env.WORKSPACE}/artifactory-user-plugins-devenv/gradle.properties")
         processFileInPlace (property) { text ->
@@ -233,5 +242,3 @@ def reportOnTestsForBuild () {
         }
     }
 }
-
-
