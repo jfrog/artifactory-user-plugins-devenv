@@ -19,7 +19,7 @@ def cleanupSlaves = [:]
 def builders =[:]
 
 // four Jenkins slave - set number of executor = 1
-def labels =['jslave1', 'jslave2', 'jslave3']
+def labels =['jslave4', 'jslave2', 'jslave3']
 
 //
 // create list of all user plugins 
@@ -148,23 +148,34 @@ def buildersOnSlaves (label, artbranch) {
     return {
         node (label) {
             try {
-                // stop artifactory if it happens to be still running from previous builds
-                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew cleanArtPro -PBuild_NUMBER=${env.BUILD_NUMBER}"
+
             } catch (Exception e) {
                 println "Info: Exception caught while cleanup before preparing Artifactory"
-            }
-            sleep (15)
-            dir ('artifactory-user-plugins') {
-                git url: 'https://github.com/JFrogDev/artifactory-user-plugins.git'
             }
             dir ('artifactory-user-plugins-devenv') {
                 git url: 'https://github.com/JFrogDev/artifactory-user-plugins-devenv.git', branch: artbranch
                 unstash "gradle-property"
                 unstash "artifactory-lic"
-                sh "cp artifactory.lic ${env.WORKSPACE}/artifactory-user-plugins-devenv/local-store/"
+                def workspace = pwd()
+                sh "cp artifactory.lic $workspace/local-store/"
+                sh "docker build --build-arg artifactoryVersion=_latest --build-arg artbranch=${artbranch} --build-arg Build_NUMBER=${env.BUILD_NUMBER} -f $workspace/Dockerfile -t user-plugin:test ."
             }
-            sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew prepareArtPro -PBuild_NUMBER=${env.BUILD_NUMBER}"
-            sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew startArtPro -PBuild_NUMBER=${env.BUILD_NUMBER}"
+        }
+    }
+}
+
+@NonCPS
+def runUserPluginTest (pluginName) {
+    return {
+        node ('artuserplugin') {
+            echo "User Plugin Test: ${pluginName}"
+            try {
+                sh "docker run -e pluginName=$pluginName user-plugin:test"
+                def containerId = sh(script: 'docker ps -alq', returnStdout: true)
+                sh "docker cp $containerId:/data/artifactory-user-plugins-devenv/build/reports/tests/ build/reports/tests"
+            } catch (Exception e) {
+                println "Caught Exception with plugin ${pluginName}. Message ${e.message}"
+            }
         }
     }
 }
@@ -189,23 +200,6 @@ def processFileInPlace (file, Closure processText) {
     file.write(processText(text))
 }
 
-def runUserPluginTest (pluginName) {
-    return {
-        node ('artuserplugin') {
-            echo "User Plugin Test: ${pluginName}"
-            try {
-                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew workOnPlugin -DpluginName=${pluginName}"
-                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew test"
-            } catch (Exception e) {
-                println "Caught Exception with plugin ${pluginName}. Message ${e.message}"
-
-            } finally {
-                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew stopWorkOnPlugin -DpluginName=all" 
-                sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew restartArtPro"
-            }
-        }
-    }
-}
 
 def cleanUpSlaves (label) {
     return {
