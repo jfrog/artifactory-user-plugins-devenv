@@ -27,7 +27,7 @@ def labels =['jslave4', 'jslave2', 'jslave3']
 
 node ('master') {
     stage ('Create Plugin List') {
-        git url: 'https://github.com/JFrogDev/artifactory-user-plugins.git' 
+        git url: 'https://github.com/JFrogDev/artifactory-user-plugins.git'
         copyPluginList(userPluginList(new File("${env.WORKSPACE}")))
         printUserPluginList ()
     }
@@ -74,7 +74,7 @@ try {
             }
             parallel stepsForParallel
         }
-    } 
+    }
 } catch (Exception e) {
     println "Caught exception at Unit Test: ${e.message}"    
 } finally {
@@ -164,17 +164,24 @@ def buildersOnSlaves (label, artbranch) {
     }
 }
 
-@NonCPS
+
 def runUserPluginTest (pluginName) {
     return {
-        node ('artuserplugin') {
-            echo "User Plugin Test: ${pluginName}"
-            try {
-                sh "docker run -e pluginName=$pluginName user-plugin:test"
-                def containerId = sh(script: 'docker ps -alq', returnStdout: true)
-                sh "docker cp $containerId:/data/artifactory-user-plugins-devenv/build/reports/tests/ build/reports/tests"
-            } catch (Exception e) {
-                println "Caught Exception with plugin ${pluginName}. Message ${e.message}"
+        node ('docker') {
+            dir ('artifactory-user-plugins-devenv') {
+                echo "User Plugin Test: ${pluginName}"
+                sh "mkdir -p build/reports/tests"
+                def containerPlugin = pluginName.toLowerCase().replaceAll("\\/", "-")
+                try {
+                    //def cn = pluginName.toLowerCase().replaceAll("\\/", "-").concat(${env.BUILD_NUMBER})
+                    sh "docker run -e pluginName=${pluginName} --name ${containerPlugin} user-plugin:test"
+                } catch (Exception e) {
+                    println "Caught Exception with plugin ${pluginName}. Message ${e.message}"
+                } finally {
+                    sh "docker cp ${containerPlugin}:/data/artifactory-user-plugins-devenv/build/reports/tests/ build/"
+                    sh "docker cp ${containerPlugin}:/data/artifactory-user-plugins-devenv/build/test-results build/"
+                    sh "docker rm ${containerPlugin}"
+                }
             }
         }
     }
