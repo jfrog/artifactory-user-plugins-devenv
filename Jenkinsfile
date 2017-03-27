@@ -216,9 +216,10 @@ def cleanUpSlaves (label) {
             } catch (Exception e) {
                 println "Caught exception while archiving test results. ${e.message}"
             } finally {
-                    sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew stopArtPro"
-                    sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; ./gradlew cleanArtPro"
-                    sh "cd ${env.WORKSPACE}/artifactory-user-plugins-devenv; rm gradle.properties"
+		dir ('artifactory-user-plugins-devenv') {
+                    deleteDir()
+                }
+                println "Done with clean up" 
             }
         }
     }
