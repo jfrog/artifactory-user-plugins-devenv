@@ -31,9 +31,9 @@ apply plugin: 'eclipse'
 
 test {
     outputs.upToDateWhen { false }
-    testLogging {
-        showStandardStreams = true
-    }
+    // testLogging {
+    //     showStandardStreams = true
+    // }
 }
 
 version = "$currentVersion"
