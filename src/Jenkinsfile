@@ -19,7 +19,7 @@ def cleanupSlaves = [:]
 def builders =[:]
 
 // four Jenkins slave - set number of executor = 1
-def labels =['jslave1', 'jslave2', 'jslave3']
+def labels =['jslave1', 'jslave2', 'jslave3', 'jslave4']
 
 //
 // create list of all user plugins 
