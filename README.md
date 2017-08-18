@@ -8,7 +8,7 @@ How to configure Artifactory plugin development
 - If you want to use an older version of Artifactory, or download it from a
   different source, edit `gradle.properties` accordingly
 
-NOTE: This supports Linux and Mac OS X platforms, Windows OS is not supported!
+NOTE: This supports Linux and Mac OS X platforms, Windows OS is not supported! *(If you are familiar with Windows & Eclipse & Maven, please see [README-EclipseMaven.md](README-EclipseMaven.md))*
 
 All of the configuration happens with Gradle tasks:
 
