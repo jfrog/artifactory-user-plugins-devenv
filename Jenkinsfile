@@ -45,7 +45,7 @@ node ('master') {
             }
             fetchArtifactoryLicense (server)
             stash name: "gradle-property", includes: "gradle.properties"
-            stash name: "artifactory-lic", includes: "artifactory.lic"
+            stash name: "artifactory-lic", includes: "artuserplugin.lic"
 
             try {
                 for (x in labels) {
