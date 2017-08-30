@@ -104,7 +104,7 @@ def fetchArtifactoryLicense (server) {
     def downloadSpec = """{
         "files": [
                 {
-                    "pattern": "artifactory-lic/artifactory.lic",
+                    "pattern": "artifactory-lic/artuserplugin.lic",
                     "target": "${env.WORKSPACE}/artifactory-user-plugins-devenv/"
                 }
             ]
