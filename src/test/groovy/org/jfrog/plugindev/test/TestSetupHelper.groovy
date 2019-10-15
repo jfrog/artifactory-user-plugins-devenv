@@ -1,13 +1,17 @@
 package org.jfrog.plugindev.test
 
-import static org.jfrog.artifactory.client.ArtifactoryClient.create
+import org.jfrog.artifactory.client.ArtifactoryClientBuilder
 
 /**
  * Created by freds on 8/4/14.
  */
 class TestSetupHelper {
     static def startArtifactory() {
-        def artifactory = create("http://localhost:8088/artifactory", "admin", "password")
+        def artifactory = ArtifactoryClientBuilder.create()
+            .setUrl("http://localhost:8088/artifactory")
+            .setUsername("admin")
+            .setPassword("password")
+            .build()
 
     }
 }
