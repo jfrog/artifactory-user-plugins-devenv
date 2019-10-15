@@ -68,7 +68,8 @@ dependencies {
     }
     testCompile(group: 'com.icegreen', name: 'greenmail', version: '1.5.3')
     compile(group: 'org.codehaus.groovy', name: 'groovy-all', version: '2.4.5')
-    compile(group: 'org.jfrog.artifactory.client', name: 'artifactory-java-client-services', version: '2.3.3')
+    compile(group: 'org.jfrog.artifactory.client', name: 'artifactory-java-client-api', version: '2.6.2')
+    compile(group: 'org.jfrog.artifactory.client', name: 'artifactory-java-client-services', version: '2.6.2')
 }
 
 task downloadArtPro << {
