@@ -1,3 +1,5 @@
+*Note:  This repository is not currently being maintained for Artifactory 7.x and above.*
+
 How to configure Artifactory plugin development
 -----------------------------------------------
 
